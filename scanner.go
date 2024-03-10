@@ -1,6 +1,6 @@
 package main
 
-import "yap/tokens"
+import "github.com/ethandenny/yap/tokens"
 
 type Scanner struct {
 	tokens     tokens.TokenList
@@ -49,9 +49,8 @@ func scanNumber(i *int, line string, LineNumber int) tokens.Token {
 	start := *i
 	Type := tokens.Integer
 
+Loop:
 	for ; *i < len(line); *i++ {
-		endOfToken := false
-
 		switch line[*i] {
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		case '.':
@@ -62,11 +61,7 @@ func scanNumber(i *int, line string, LineNumber int) tokens.Token {
 			}
 		default:
 			*i--
-			endOfToken = true
-		}
-
-		if endOfToken {
-			break
+			break Loop
 		}
 	}
 
@@ -82,17 +77,12 @@ func scanNumber(i *int, line string, LineNumber int) tokens.Token {
 func scanSymbol(i *int, line string, LineNumber int) tokens.Token {
 	start := *i
 
+Loop:
 	for ; *i < len(line); *i++ {
-		endOfToken := false
-
 		switch line[*i] {
 		case ')', '(', ' ', '\n':
 			*i--
-			endOfToken = true
-		}
-
-		if endOfToken {
-			break
+			break Loop
 		}
 	}
 

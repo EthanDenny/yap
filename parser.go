@@ -2,14 +2,15 @@ package main
 
 import (
 	"strconv"
-	"yap/bytecode"
-	"yap/tokens"
+
+	"github.com/ethandenny/yap/bytecode"
+	"github.com/ethandenny/yap/tokens"
 )
 
 func parse(tokenList tokens.TokenList) *Env {
 	env := NewEnv()
 
-	for !tokenList.Empty() {
+	for tokenList.HasToken() {
 		parseCall(&env, &tokenList)
 	}
 
@@ -42,6 +43,7 @@ func parseCall(env *Env, tokenList *tokens.TokenList) {
 			env.Push(bytecode.Var)
 		case tokens.LeftParen:
 			parseCall(env, tokenList)
+		default:
 		}
 	}
 

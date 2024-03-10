@@ -17,48 +17,40 @@ type Token struct {
 	LineNumber int
 }
 
-func none() Token {
-	return Token{
-		Type:       None,
-		Content:    "()",
-		LineNumber: 0,
-	}
-}
-
 type TokenList struct {
 	curr   int
 	tokens []Token
 }
 
-func (list *TokenList) Expect(Type TokenType) Token {
-	if t := list.Consume(); t.Type == Type {
+func (l *TokenList) Expect(Type TokenType) Token {
+	if t := l.Consume(); t.Type == Type {
 		return t
 	} else {
 		panic("Expected another token")
 	}
 }
 
-func (list *TokenList) Insert(t Token) {
-	list.tokens = append(list.tokens, t)
+func (l *TokenList) Insert(t Token) {
+	l.tokens = append(l.tokens, t)
 }
 
-func (list TokenList) Peek() Token {
-	return list.tokens[list.curr]
+func (l *TokenList) Peek() Token {
+	return l.tokens[l.curr]
 }
 
-func (list *TokenList) Consume() Token {
-	list.curr += 1
-	return list.tokens[list.curr-1]
+func (l *TokenList) Consume() Token {
+	l.curr += 1
+	return l.tokens[l.curr-1]
 }
 
-func (list TokenList) GetAll() []Token {
-	return list.tokens
+func (l *TokenList) GetAll() []Token {
+	return l.tokens
 }
 
-func (list TokenList) Len() int {
-	return len(list.tokens)
+func (l *TokenList) Len() int {
+	return len(l.tokens)
 }
 
-func (list TokenList) Empty() bool {
-	return list.Len() == list.curr
+func (l *TokenList) HasToken() bool {
+	return l.curr < l.Len()
 }

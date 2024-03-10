@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	"yap/bytecode"
+
+	"github.com/ethandenny/yap/bytecode"
 )
 
 type ValueType int64
@@ -10,7 +11,6 @@ type ValueType int64
 const (
 	IntegerT ValueType = iota
 	FloatT
-	StringT
 	NoneT
 )
 
@@ -35,29 +35,29 @@ func eval(env *Env) ValueType {
 	case bytecode.Add:
 		assertArgc(env.Pop(), 2)
 
-		a, a_t := popArg(env)
-		b, b_t := popArg(env)
+		a, aT := popArg(env)
+		b, bT := popArg(env)
 
-		if a_t == IntegerT && b_t == IntegerT {
+		if aT == IntegerT && bT == IntegerT {
 			r := a + b
 			env.Push(r)
 			return IntegerT
 		} else {
-			var a_v float64
-			if a_t == FloatT {
-				a_v = env.GetFloat(a)
+			var aV float64
+			if aT == FloatT {
+				aV = env.GetFloat(a)
 			} else {
-				a_v = float64(a)
+				aV = float64(a)
 			}
 
-			var b_v float64
-			if b_t == FloatT {
-				b_v = env.GetFloat(b)
+			var bV float64
+			if bT == FloatT {
+				bV = env.GetFloat(b)
 			} else {
-				b_v = float64(b)
+				bV = float64(b)
 			}
 
-			f := a_v + b_v
+			f := aV + bV
 			env.PushFloat(f)
 
 			return FloatT
@@ -68,20 +68,25 @@ func eval(env *Env) ValueType {
 		defer fmt.Println()
 
 		if argc > 0 {
+			argv := make([]any, argc)
+
 			var i int64 = 0
 			for ; i < argc; i++ {
 				v, t := popArg(env)
-				var v_out interface{}
 
 				if t == IntegerT {
-					v_out = v
+					argv[i] = v
 				} else if t == FloatT {
-					v_out = env.GetFloat(v)
+					argv[i] = env.GetFloat(v)
 				}
+			}
 
-				defer fmt.Print(v_out, " ")
+			for i := len(argv) - 1; i >= 0; i-- {
+				fmt.Print(argv[i], " ")
 			}
 		}
+	default:
+		panic("Unrecognized bytecode instruction")
 	}
 
 	return NoneT
