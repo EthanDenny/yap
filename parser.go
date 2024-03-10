@@ -6,12 +6,11 @@ import (
 	"github.com/ethandenny/yap/tokens"
 )
 
-func parse(list tokens.TokenList) *Env {
-	env := NewEnv()
+func parse(env *Env, list tokens.TokenList) {
 	var instructions []int64
 
 	for list.HasToken() {
-		for _, instr := range parseCall(&env, &list) {
+		for _, instr := range parseCall(env, &list) {
 			instructions = append(instructions, instr)
 		}
 	}
@@ -19,8 +18,6 @@ func parse(list tokens.TokenList) *Env {
 	for i := len(instructions) - 1; i >= 0; i-- {
 		env.Push(instructions[i])
 	}
-
-	return &env
 }
 
 func parseCall(env *Env, list *tokens.TokenList) []int64 {

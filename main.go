@@ -10,27 +10,51 @@ import (
 func main() {
 	reader := bufio.NewReader(os.Stdin)
 
-	for {
-		fmt.Print("> ")
-		line, err := reader.ReadString('\n')
+	if len(os.Args) >= 2 {
+		fileName := os.Args[1]
+		file, err := os.Open(fileName)
 		if err != nil {
-			return
+			fmt.Println(err)
 		}
+		defer file.Close()
 
-		line = strings.TrimSpace(line)
+		env := NewEnv()
+		fileScanner := bufio.NewScanner(file)
 
-		tokenList := scan(line)
-
-		env := parse(tokenList)
-
-		for stackPos := len(env.Stack) - 1; stackPos >= 0; stackPos-- {
-			dis(env, &stackPos)
+		for fileScanner.Scan() {
+			line := fileScanner.Text()
+			line = strings.TrimSpace(line)
+			tokenList := scan(line)
+			parse(&env, tokenList)
 		}
-
-		fmt.Println()
 
 		for len(env.Stack) > 1 {
-			eval(env)
+			eval(&env)
+		}
+	} else {
+		for {
+			fmt.Print("> ")
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				return
+			}
+
+			line = strings.TrimSpace(line)
+
+			tokenList := scan(line)
+
+			env := NewEnv()
+			parse(&env, tokenList)
+
+			for stackPos := len(env.Stack) - 1; stackPos >= 0; stackPos-- {
+				dis(&env, &stackPos)
+			}
+
+			fmt.Println()
+
+			for len(env.Stack) > 1 {
+				eval(&env)
+			}
 		}
 	}
 }
