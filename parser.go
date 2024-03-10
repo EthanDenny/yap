@@ -22,14 +22,14 @@ func parseCall(env *Env, tokenList *tokens.TokenList) {
 	callName := tokenList.Expect(tokens.Symbol).Content
 	var argc int64 = 0
 
-	for nextToken := tokenList.Peek(); nextToken.Type != tokens.RightParen; {
+	for nextToken := tokenList.Peek(); nextToken.Type != tokens.RightParen; nextToken = tokenList.Peek() {
 		argc++
 
 		switch nextToken.Type {
 		case tokens.Integer:
 			t := tokenList.Consume()
-			i, _ := strconv.Atoi(t.Content)
-			env.Push(int64(i))
+			i, _ := strconv.ParseInt(t.Content, 10, 64)
+			env.Push(i)
 			env.Push(bytecode.Integer)
 		case tokens.Float:
 			t := tokenList.Consume()
