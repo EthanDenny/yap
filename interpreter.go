@@ -1,10 +1,6 @@
 package main
 
-import (
-	"fmt"
-
-	"github.com/ethandenny/yap/bytecode"
-)
+import "fmt"
 
 type ValueType int64
 
@@ -28,11 +24,11 @@ func assertArgc(argc int64, n int64) {
 
 func eval(env *Env) ValueType {
 	switch env.Pop() {
-	case bytecode.Integer:
+	case Integer:
 		return IntegerT
-	case bytecode.Float:
+	case Float:
 		return FloatT
-	case bytecode.Add:
+	case Add:
 		assertArgc(env.Pop(), 2)
 
 		a, aT := popArg(env)
@@ -58,33 +54,28 @@ func eval(env *Env) ValueType {
 			}
 
 			f := aV + bV
-			env.PushFloat(f)
+			index := env.InsertFloat(f)
+			env.Push(index)
 
 			return FloatT
 		}
-	case bytecode.Print:
+	case Print:
 		argc := env.Pop()
 
-		defer fmt.Println()
-
 		if argc > 0 {
-			argv := make([]any, argc)
-
 			var i int64 = 0
 			for ; i < argc; i++ {
 				v, t := popArg(env)
 
 				if t == IntegerT {
-					argv[i] = v
+					fmt.Print(v, " ")
 				} else if t == FloatT {
-					argv[i] = env.GetFloat(v)
+					fmt.Print(env.GetFloat(v), " ")
 				}
 			}
-
-			for i := len(argv) - 1; i >= 0; i-- {
-				fmt.Print(argv[i], " ")
-			}
 		}
+
+		fmt.Println()
 	default:
 		panic("Unrecognized bytecode instruction")
 	}

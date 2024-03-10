@@ -3,55 +3,31 @@ package main
 import "github.com/ethandenny/yap/tokens"
 
 type Scanner struct {
+	innerStr   string
+	strPos     int
+	lineNumber int
 	tokens     tokens.TokenList
-	LineNumber int
 }
 
-func scan(line string) tokens.TokenList {
-	s := Scanner{
-		LineNumber: 1,
-	}
-
-	for i := 0; i < len(line); i++ {
-		var t tokens.Token
-
-		switch line[i] {
-		case '(':
-			t = tokens.Token{
-				Type:       tokens.LeftParen,
-				Content:    line[i : i+1],
-				LineNumber: s.LineNumber,
-			}
-		case ')':
-			t = tokens.Token{
-				Type:       tokens.RightParen,
-				Content:    line[i : i+1],
-				LineNumber: s.LineNumber,
-			}
-		case ' ':
-			continue
-		case '\n':
-			s.LineNumber += 1
-			continue
-		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-			t = scanNumber(&i, line, s.LineNumber)
-		default:
-			t = scanSymbol(&i, line, s.LineNumber)
-		}
-
-		s.tokens.Insert(t)
-	}
-
-	return s.tokens
+func (s *Scanner) getChar() byte {
+	return s.innerStr[s.strPos]
 }
 
-func scanNumber(i *int, line string, LineNumber int) tokens.Token {
-	start := *i
+func (s *Scanner) scanSingleChar(Type tokens.TokenType) {
+	s.tokens.Insert(tokens.Token{
+		Type:       Type,
+		Content:    s.innerStr[s.strPos : s.strPos+1],
+		LineNumber: s.lineNumber,
+	})
+}
+
+func (s *Scanner) scanNumber() {
+	start := s.strPos
 	Type := tokens.Integer
 
 Loop:
-	for ; *i < len(line); *i++ {
-		switch line[*i] {
+	for ; s.strPos < len(s.innerStr); s.strPos++ {
+		switch s.getChar() {
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		case '.':
 			if Type == tokens.Integer {
@@ -60,37 +36,64 @@ Loop:
 				panic("Floats aren't version numbers!")
 			}
 		default:
-			*i--
+			s.strPos--
 			break Loop
 		}
 	}
 
-	end := min(*i+1, len(line))
+	end := min(s.strPos+1, len(s.innerStr))
 
-	return tokens.Token{
+	s.tokens.Insert(tokens.Token{
 		Type:       Type,
-		Content:    line[start:end],
-		LineNumber: LineNumber,
-	}
+		Content:    s.innerStr[start:end],
+		LineNumber: s.lineNumber,
+	})
 }
 
-func scanSymbol(i *int, line string, LineNumber int) tokens.Token {
-	start := *i
+func (s *Scanner) scanSymbol() {
+	start := s.strPos
 
 Loop:
-	for ; *i < len(line); *i++ {
-		switch line[*i] {
-		case ')', '(', ' ', '\n':
-			*i--
+	for ; s.strPos < len(s.innerStr); s.strPos++ {
+		switch s.getChar() {
+		case '(', ')', '[', ']', ' ', '\n':
+			s.strPos--
 			break Loop
 		}
 	}
 
-	end := min(*i+1, len(line))
+	end := min(s.strPos+1, len(s.innerStr))
 
-	return tokens.Token{
+	s.tokens.Insert(tokens.Token{
 		Type:       tokens.Symbol,
-		Content:    line[start:end],
-		LineNumber: LineNumber,
+		Content:    s.innerStr[start:end],
+		LineNumber: s.lineNumber,
+	})
+}
+
+func scan(str string) tokens.TokenList {
+	s := Scanner{
+		innerStr:   str,
+		lineNumber: 1,
 	}
+
+	for ; s.strPos < len(str); s.strPos++ {
+		switch s.getChar() {
+		case '(':
+			s.scanSingleChar(tokens.LeftParen)
+		case ')':
+			s.scanSingleChar(tokens.RightParen)
+		case ' ':
+			continue
+		case '\n':
+			s.lineNumber++
+			continue
+		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+			s.scanNumber()
+		default:
+			s.scanSymbol()
+		}
+	}
+
+	return s.tokens
 }

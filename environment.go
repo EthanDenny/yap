@@ -3,10 +3,10 @@ package main
 type Env struct {
 	Stack []int64
 
-	Functions map[string]int64
+	functions map[string]int64
 	fnIndex   int64
 
-	Symbols     map[string]int64
+	symbols     map[string]int64
 	symbolIndex int64
 
 	floats     map[int64]float64
@@ -17,10 +17,10 @@ func NewEnv() Env {
 	return Env{
 		Stack: make([]int64, 0, 1),
 
-		Functions: make(map[string]int64),
+		functions: make(map[string]int64),
 		fnIndex:   0,
 
-		Symbols:     make(map[string]int64),
+		symbols:     make(map[string]int64),
 		symbolIndex: 0,
 
 		floats:     make(map[int64]float64),
@@ -44,12 +44,21 @@ func (env *Env) Pop() int64 {
 	return e
 }
 
-func (env *Env) PushFloat(f float64) {
+func (env *Env) InsertFloat(f float64) int64 {
 	env.floats[env.floatIndex] = f
-	env.Push(env.floatIndex)
+	index := env.floatIndex
 	env.floatIndex++
+	return index
 }
 
 func (env *Env) GetFloat(index int64) float64 {
 	return env.floats[index]
+}
+
+func (env *Env) GetSymbol(name string) int64 {
+	return env.symbols[name]
+}
+
+func (env *Env) GetFn(name string) int64 {
+	return env.functions[name]
 }

@@ -3,61 +3,76 @@ package main
 import (
 	"strconv"
 
-	"github.com/ethandenny/yap/bytecode"
 	"github.com/ethandenny/yap/tokens"
 )
 
-func parse(tokenList tokens.TokenList) *Env {
+func parse(list tokens.TokenList) *Env {
 	env := NewEnv()
+	var instructions []int64
 
-	for tokenList.HasToken() {
-		parseCall(&env, &tokenList)
+	for list.HasToken() {
+		for _, instr := range parseCall(&env, &list) {
+			instructions = append(instructions, instr)
+		}
+	}
+
+	for i := len(instructions) - 1; i >= 0; i-- {
+		env.Push(instructions[i])
 	}
 
 	return &env
 }
 
-func parseCall(env *Env, tokenList *tokens.TokenList) {
-	tokenList.Expect(tokens.LeftParen)
+func parseCall(env *Env, list *tokens.TokenList) []int64 {
+	list.Expect(tokens.LeftParen)
 
-	callName := tokenList.Expect(tokens.Symbol).Content
-	var argc int64 = 0
+	callName := list.Expect(tokens.Symbol).Content
 
-	for nextToken := tokenList.Peek(); nextToken.Type != tokens.RightParen; nextToken = tokenList.Peek() {
-		argc++
+	var args [][]int64
 
+	for nextToken := list.Peek(); nextToken.Type != tokens.RightParen; nextToken = list.Peek() {
 		switch nextToken.Type {
 		case tokens.Integer:
-			t := tokenList.Consume()
+			t := list.Consume()
 			i, _ := strconv.ParseInt(t.Content, 10, 64)
-			env.Push(i)
-			env.Push(bytecode.Integer)
+			args = append(args, []int64{Integer, i})
 		case tokens.Float:
-			t := tokenList.Consume()
+			t := list.Consume()
 			f, _ := strconv.ParseFloat(t.Content, 64)
-			env.PushFloat(f)
-			env.Push(bytecode.Float)
+			index := env.InsertFloat(f)
+			args = append(args, []int64{Float, index})
 		case tokens.Symbol:
-			symbolIndex := env.Symbols[nextToken.Content]
-			env.Push(symbolIndex)
-			env.Push(bytecode.Var)
+			symbolIndex := env.GetSymbol(nextToken.Content)
+			args = append(args, []int64{Var, symbolIndex})
 		case tokens.LeftParen:
-			parseCall(env, tokenList)
+			args = append(args, parseCall(env, list))
 		default:
 		}
 	}
 
-	env.Push(argc)
-
-	switch callName {
-	case "+":
-		env.Push(bytecode.Add)
-	case "yap":
-		env.Push(bytecode.Print)
-	default:
-		fnIndex := env.Functions[callName]
-		env.Push(fnIndex)
+	var functions = map[string]int64{
+		"+":   Add,
+		"yap": Print,
 	}
 
-	tokenList.Expect(tokens.RightParen)
+	var instructions []int64
+
+	if f, containsKey := functions[callName]; containsKey {
+		instructions = append(instructions, f)
+	} else {
+		fnIndex := env.GetFn(callName)
+		instructions = append(instructions, fnIndex)
+	}
+
+	instructions = append(instructions, int64(len(args)))
+
+	for _, arg := range args {
+		for _, instr := range arg {
+			instructions = append(instructions, instr)
+		}
+	}
+
+	list.Expect(tokens.RightParen)
+
+	return instructions
 }

@@ -39,7 +39,7 @@ func (l *TokenList) Peek() Token {
 }
 
 func (l *TokenList) Consume() Token {
-	l.curr += 1
+	l.curr++
 	return l.tokens[l.curr-1]
 }
 
