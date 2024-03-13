@@ -6,70 +6,86 @@ import (
 	"github.com/ethandenny/yap/tokens"
 )
 
-func parse(env *Env, list tokens.TokenList) {
-	var instructions []int64
-
+func parse(env *Env, stack *Stack, list tokens.TokenList) {
+	var tempStack Stack
 	for list.HasToken() {
-		for _, instr := range parseCall(env, &list) {
-			instructions = append(instructions, instr)
-		}
+		tempStack = append(tempStack, parseCall(env, &list)...)
 	}
+	flipStack(&tempStack)
 
-	for i := len(instructions) - 1; i >= 0; i-- {
-		env.Push(instructions[i])
-	}
+	*stack = append(*stack, tempStack...)
 }
 
-func parseCall(env *Env, list *tokens.TokenList) []int64 {
+func parseCall(env *Env, list *tokens.TokenList) Stack {
 	list.Expect(tokens.LeftParen)
 
 	callName := list.Expect(tokens.Symbol).Content
 
-	var args [][]int64
+	var stack Stack
 
-	for nextToken := list.Peek(); nextToken.Type != tokens.RightParen; nextToken = list.Peek() {
-		switch nextToken.Type {
-		case tokens.Integer:
-			t := list.Consume()
-			i, _ := strconv.ParseInt(t.Content, 10, 64)
-			args = append(args, []int64{Integer, i})
-		case tokens.Float:
-			t := list.Consume()
-			f, _ := strconv.ParseFloat(t.Content, 64)
-			index := env.InsertFloat(f)
-			args = append(args, []int64{Float, index})
-		case tokens.Symbol:
-			symbolIndex := env.GetSymbol(nextToken.Content)
-			args = append(args, []int64{Var, symbolIndex})
-		case tokens.LeftParen:
-			args = append(args, parseCall(env, list))
-		default:
+	switch callName {
+	case "let":
+		t := list.Consume()
+		if t.Type != tokens.Symbol {
+			panic("Expected symbol")
 		}
-	}
+		varName := t.Content
+		varValue, varType := evalTokens(env, list)
 
-	var functions = map[string]int64{
-		"+":   Add,
-		"yap": Print,
-	}
+		env.SetVariable(varName, varValue, varType)
+	default:
+		var args []Stack
 
-	var instructions []int64
+		for list.Peek().Type != tokens.RightParen {
+			args = append(args, parseArg(env, list))
+		}
 
-	if f, containsKey := functions[callName]; containsKey {
-		instructions = append(instructions, f)
-	} else {
-		fnIndex := env.GetFn(callName)
-		instructions = append(instructions, fnIndex)
-	}
+		var functions = map[string]int64{
+			"+":   InstrAdd,
+			"yap": InstrPrint,
+		}
 
-	instructions = append(instructions, int64(len(args)))
+		if f, containsKey := functions[callName]; containsKey {
+			stack = append(stack, f)
+		} else {
+			fnIndex := env.GetFn(callName)
+			stack = append(stack, fnIndex)
+		}
 
-	for _, arg := range args {
-		for _, instr := range arg {
-			instructions = append(instructions, instr)
+		stack = append(stack, int64(len(args)))
+
+		for _, arg := range args {
+			for _, instr := range arg {
+				stack = append(stack, instr)
+			}
 		}
 	}
 
 	list.Expect(tokens.RightParen)
 
-	return instructions
+	return stack
+}
+
+func parseArg(env *Env, list *tokens.TokenList) Stack {
+	nextToken := list.Peek()
+
+	switch nextToken.Type {
+	case tokens.Integer:
+		t := list.Consume()
+		i, _ := strconv.ParseInt(t.Content, 10, 64)
+		return []int64{InstrInteger, i}
+	case tokens.Float:
+		t := list.Consume()
+		f, _ := strconv.ParseFloat(t.Content, 64)
+		index := env.InsertFloat(f)
+		return []int64{InstrFloat, index}
+	case tokens.Symbol:
+		t := list.Consume()
+		id := env.GetSymbol(t.Content)
+		return []int64{InstrVar, id}
+	case tokens.LeftParen:
+		return parseCall(env, list)
+	default:
+		panic("Unexpected token while parsing arg")
+	}
 }

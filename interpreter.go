@@ -1,43 +1,26 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
 
-type ValueType int64
-
-const (
-	IntegerT ValueType = iota
-	FloatT
-	NoneT
+	"github.com/ethandenny/yap/tokens"
 )
 
-func popArg(env *Env) (int64, ValueType) {
-	t := eval(env)
-	v := env.Pop()
-	return v, t
-}
+func eval(env *Env, stack *Stack) (int64, YapType) {
+	switch popStack(stack) {
+	case InstrInteger:
+		return popStack(stack), IntegerT
+	case InstrFloat:
+		return popStack(stack), FloatT
+	case InstrAdd:
+		assertArgc(popStack(stack), 2)
 
-func assertArgc(argc int64, n int64) {
-	if argc != n {
-		panic("Expected different number of args")
-	}
-}
-
-func eval(env *Env) ValueType {
-	switch env.Pop() {
-	case Integer:
-		return IntegerT
-	case Float:
-		return FloatT
-	case Add:
-		assertArgc(env.Pop(), 2)
-
-		a, aT := popArg(env)
-		b, bT := popArg(env)
+		a, aT := eval(env, stack)
+		b, bT := eval(env, stack)
 
 		if aT == IntegerT && bT == IntegerT {
 			r := a + b
-			env.Push(r)
-			return IntegerT
+			return r, IntegerT
 		} else {
 			var aV float64
 			if aT == FloatT {
@@ -55,17 +38,16 @@ func eval(env *Env) ValueType {
 
 			f := aV + bV
 			index := env.InsertFloat(f)
-			env.Push(index)
 
-			return FloatT
+			return index, FloatT
 		}
-	case Print:
-		argc := env.Pop()
+	case InstrPrint:
+		argc := popStack(stack)
 
 		if argc > 0 {
 			var i int64 = 0
 			for ; i < argc; i++ {
-				v, t := popArg(env)
+				v, t := eval(env, stack)
 
 				if t == IntegerT {
 					fmt.Print(v, " ")
@@ -76,9 +58,24 @@ func eval(env *Env) ValueType {
 		}
 
 		fmt.Println()
+	case InstrVar:
+		id := popStack(stack)
+		return env.GetVariable(id)
 	default:
 		panic("Unrecognized bytecode instruction")
 	}
 
-	return NoneT
+	return 0, NoneT
+}
+
+func evalTokens(env *Env, list *tokens.TokenList) (int64, YapType) {
+	stack := parseArg(env, list)
+	flipStack(&stack)
+	return eval(env, &stack)
+}
+
+func assertArgc(argc int64, n int64) {
+	if argc != n {
+		panic("Expected different number of args")
+	}
 }
