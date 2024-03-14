@@ -5,8 +5,13 @@ type Variable struct {
 	Type  YapType
 }
 
+type Function struct {
+	Argc int64
+	Body Stack
+}
+
 type Env struct {
-	functions map[string]int64
+	functions map[int64]Function
 	fnIndex   int64
 
 	symbols       map[string]int64
@@ -19,7 +24,7 @@ type Env struct {
 
 func NewEnv() Env {
 	return Env{
-		functions: make(map[string]int64),
+		functions: make(map[int64]Function),
 		fnIndex:   0,
 
 		symbols:       make(map[string]int64),
@@ -75,9 +80,19 @@ func (env *Env) GetVariable(id int64) (int64, YapType) {
 	panic("Could not find variable")
 }
 
-func (env *Env) GetFn(name string) int64 {
-	if f, ok := env.functions[name]; ok {
-		return f
+func (env *Env) CreateFn(argc int64, body Stack) int64 {
+	flipStack(&body)
+	env.functions[env.fnIndex] = Function{
+		argc,
+		body,
+	}
+	env.fnIndex++
+	return env.fnIndex - 1
+}
+
+func (env *Env) GetFn(id int64) (int64, Stack) {
+	if f, ok := env.functions[id]; ok {
+		return f.Argc, f.Body
 	}
 
 	panic("Could not find function")

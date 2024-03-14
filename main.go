@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/ethandenny/yap/tokens"
 )
 
 func main() {
@@ -20,17 +22,19 @@ func main() {
 
 		env := NewEnv()
 		var stack Stack
+		var tokenList tokens.TokenList
 
 		fileScanner := bufio.NewScanner(file)
 		for fileScanner.Scan() {
 			line := fileScanner.Text()
 			line = strings.TrimSpace(line)
-			tokenList := scan(line)
-			parse(&env, &stack, tokenList)
+			tokenList.Append(scan(line))
 		}
 
+		parse(&env, &stack, tokenList)
+
 		for len(stack) > 0 {
-			eval(&env, &stack)
+			eval(&env, &stack, nil)
 		}
 	} else {
 		env := NewEnv()
@@ -48,7 +52,7 @@ func main() {
 			var stack Stack
 
 			parse(&env, &stack, tokenList)
-			eval(&env, &stack)
+			eval(&env, &stack, nil)
 		}
 	}
 }

@@ -8,14 +8,17 @@ const (
 	InstrAdd
 	InstrPrint
 	InstrLet
+	InstrFn
+	InstrArg
 )
 
 type YapType int64
 
 const (
-	IntegerT YapType = iota
+	NoneT YapType = iota
+	FunctionT
+	IntegerT
 	FloatT
-	NoneT
 )
 
 type Stack []int64
@@ -28,8 +31,12 @@ func flipStack(stack *Stack) {
 	}
 }
 
+func peekStack(stack *Stack) int64 {
+	return (*stack)[len(*stack)-1]
+}
+
 func popStack(stack *Stack) int64 {
-	e := (*stack)[len(*stack)-1]
+	e := peekStack(stack)
 	*stack = (*stack)[:len(*stack)-1]
 	return e
 }

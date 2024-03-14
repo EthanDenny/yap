@@ -54,3 +54,7 @@ func (l *TokenList) Len() int {
 func (l *TokenList) HasToken() bool {
 	return l.curr < l.Len()
 }
+
+func (l *TokenList) Append(otherList TokenList) {
+	l.tokens = append(l.tokens, otherList.GetAll()...)
+}

@@ -9,14 +9,14 @@ import (
 func parse(env *Env, stack *Stack, list tokens.TokenList) {
 	var tempStack Stack
 	for list.HasToken() {
-		tempStack = append(tempStack, parseCall(env, &list)...)
+		tempStack = append(tempStack, parseCall(env, &list, nil)...)
 	}
 	flipStack(&tempStack)
 
 	*stack = append(*stack, tempStack...)
 }
 
-func parseCall(env *Env, list *tokens.TokenList) Stack {
+func parseCall(env *Env, list *tokens.TokenList, argNames []string) Stack {
 	list.Expect(tokens.LeftParen)
 
 	callName := list.Expect(tokens.Symbol).Content
@@ -25,31 +25,51 @@ func parseCall(env *Env, list *tokens.TokenList) Stack {
 
 	switch callName {
 	case "let":
-		t := list.Consume()
-		if t.Type != tokens.Symbol {
-			panic("Expected symbol")
-		}
-		varName := t.Content
+		varName := list.Expect(tokens.Symbol).Content
 		varValue, varType := evalTokens(env, list)
 
 		env.SetVariable(varName, varValue, varType)
+	case "def":
+		fnName := list.Expect(tokens.Symbol).Content
+		var argNames []string
+
+		list.Expect(tokens.LeftParen)
+		for list.Peek().Type != tokens.RightParen {
+			argName := list.Expect(tokens.Symbol).Content
+			argNames = append(argNames, argName)
+		}
+		list.Expect(tokens.RightParen)
+
+		var fnBody Stack
+
+		list.Expect(tokens.LeftParen)
+		for list.Peek().Type != tokens.RightParen {
+			nextCall := parseArg(env, list, argNames)
+			fnBody = append(fnBody, nextCall...)
+		}
+		list.Expect(tokens.RightParen)
+
+		id := env.CreateFn(int64(len(argNames)), fnBody)
+		env.SetVariable(fnName, id, FunctionT)
 	default:
 		var args []Stack
 
 		for list.Peek().Type != tokens.RightParen {
-			args = append(args, parseArg(env, list))
+			args = append(args, parseArg(env, list, argNames))
 		}
 
-		var functions = map[string]int64{
+		var builtIns = map[string]int64{
 			"+":   InstrAdd,
 			"yap": InstrPrint,
 		}
 
-		if f, containsKey := functions[callName]; containsKey {
+		if f, containsKey := builtIns[callName]; containsKey {
 			stack = append(stack, f)
 		} else {
-			fnIndex := env.GetFn(callName)
-			stack = append(stack, fnIndex)
+			id := env.GetSymbol(callName)
+
+			stack = append(stack, InstrFn)
+			stack = append(stack, id)
 		}
 
 		stack = append(stack, int64(len(args)))
@@ -66,7 +86,7 @@ func parseCall(env *Env, list *tokens.TokenList) Stack {
 	return stack
 }
 
-func parseArg(env *Env, list *tokens.TokenList) Stack {
+func parseArg(env *Env, list *tokens.TokenList, argNames []string) Stack {
 	nextToken := list.Peek()
 
 	switch nextToken.Type {
@@ -81,10 +101,17 @@ func parseArg(env *Env, list *tokens.TokenList) Stack {
 		return []int64{InstrFloat, index}
 	case tokens.Symbol:
 		t := list.Consume()
+
+		for id, name := range argNames {
+			if name == t.Content {
+				return []int64{InstrArg, int64(id)}
+			}
+		}
+
 		id := env.GetSymbol(t.Content)
 		return []int64{InstrVar, id}
 	case tokens.LeftParen:
-		return parseCall(env, list)
+		return parseCall(env, list, argNames)
 	default:
 		panic("Unexpected token while parsing arg")
 	}
