@@ -13,6 +13,14 @@ func (s *Scanner) getChar() byte {
 	return s.innerStr[s.strPos]
 }
 
+func (s *Scanner) getNextChar() byte {
+	return s.innerStr[s.strPos+1]
+}
+
+func (s *Scanner) Len() int {
+	return len(s.innerStr) - s.strPos
+}
+
 func (s *Scanner) scanSingleChar(Type tokens.TokenType) {
 	s.tokens.Insert(tokens.Token{
 		Type:       Type,
@@ -24,6 +32,10 @@ func (s *Scanner) scanSingleChar(Type tokens.TokenType) {
 func (s *Scanner) scanNumber() {
 	start := s.strPos
 	Type := tokens.Integer
+
+	if s.getChar() == '-' {
+		s.strPos++
+	}
 
 Loop:
 	for ; s.strPos < len(s.innerStr); s.strPos++ {
@@ -90,6 +102,17 @@ func scan(str string) tokens.TokenList {
 			continue
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 			s.scanNumber()
+		case '-':
+			if s.Len() > 1 {
+				switch s.getNextChar() {
+				case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+					s.scanNumber()
+				default:
+					s.scanSymbol()
+				}
+			} else {
+				s.scanSymbol()
+			}
 		default:
 			s.scanSymbol()
 		}

@@ -80,14 +80,20 @@ func (env *Env) GetVariable(id int64) (int64, YapType) {
 	panic("Could not find variable")
 }
 
-func (env *Env) CreateFn(argc int64, body Stack) int64 {
-	flipStack(&body)
+func (env *Env) CreateFn(argc int64) int64 {
 	env.functions[env.fnIndex] = Function{
 		argc,
-		body,
+		nil,
 	}
 	env.fnIndex++
 	return env.fnIndex - 1
+}
+
+func (env *Env) SetFnBody(id int64, body Stack) {
+	flipStack(&body)
+	fn := env.functions[id]
+	fn.Body = body
+	env.functions[id] = fn
 }
 
 func (env *Env) GetFn(id int64) (int64, Stack) {

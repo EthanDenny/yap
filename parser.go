@@ -40,6 +40,9 @@ func parseCall(env *Env, list *tokens.TokenList, argNames []string) Stack {
 		}
 		list.Expect(tokens.RightParen)
 
+		id := env.CreateFn(int64(len(argNames)))
+		env.SetVariable(fnName, id, FunctionT)
+
 		var fnBody Stack
 
 		list.Expect(tokens.LeftParen)
@@ -49,8 +52,7 @@ func parseCall(env *Env, list *tokens.TokenList, argNames []string) Stack {
 		}
 		list.Expect(tokens.RightParen)
 
-		id := env.CreateFn(int64(len(argNames)), fnBody)
-		env.SetVariable(fnName, id, FunctionT)
+		env.SetFnBody(id, fnBody)
 	default:
 		var args []Stack
 
@@ -61,6 +63,9 @@ func parseCall(env *Env, list *tokens.TokenList, argNames []string) Stack {
 		var builtIns = map[string]int64{
 			"+":   InstrAdd,
 			"yap": InstrPrint,
+			"-":   InstrSub,
+			"if":  InstrIf,
+			"=":   InstrEq,
 		}
 
 		if f, containsKey := builtIns[callName]; containsKey {

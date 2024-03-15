@@ -6,10 +6,13 @@ const (
 	InstrFloat
 	InstrVar
 	InstrAdd
+	InstrSub
 	InstrPrint
 	InstrLet
 	InstrFn
 	InstrArg
+	InstrIf
+	InstrEq
 )
 
 type YapType int64
@@ -19,6 +22,7 @@ const (
 	FunctionT
 	IntegerT
 	FloatT
+	BoolT
 )
 
 type Stack []int64
