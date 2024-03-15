@@ -113,8 +113,15 @@ func parseArg(env *Env, list *tokens.TokenList, argNames []string) Stack {
 			}
 		}
 
-		id := env.GetSymbol(t.Content)
-		return []int64{InstrVar, id}
+		switch t.Content {
+		case "true":
+			return []int64{InstrBool, 1}
+		case "false":
+			return []int64{InstrBool, 0}
+		default:
+			id := env.GetSymbol(t.Content)
+			return []int64{InstrVar, id}
+		}
 	case tokens.LeftParen:
 		return parseCall(env, list, argNames)
 	default:

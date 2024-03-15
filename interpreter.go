@@ -164,6 +164,8 @@ func eval(env *Env, stack *Stack, args []Arg) (int64, YapType) {
 			v, vT := eval(env, stack, args)
 			return v, vT
 		}
+	case InstrBool:
+		return popStack(stack), BoolT
 	default:
 		fmt.Println(stack)
 		panic("Unrecognized instruction")
@@ -212,6 +214,8 @@ func popArg(env *Env, stack *Stack) {
 		assertArgc(popStack(stack), 3)
 		popArg(env, stack)
 		popArg(env, stack)
+	case InstrBool:
+		popStack(stack)
 	default:
 		panic("Unrecognized instruction")
 	}

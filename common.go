@@ -5,6 +5,7 @@ const (
 	InstrInteger
 	InstrFloat
 	InstrVar
+	InstrBool
 	InstrAdd
 	InstrSub
 	InstrPrint
