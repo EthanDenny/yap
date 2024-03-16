@@ -2,11 +2,9 @@ package main
 
 import (
 	"strconv"
-
-	"github.com/ethandenny/yap/tokens"
 )
 
-func parse(env *Env, stack *Stack, list tokens.TokenList) {
+func parse(env *Env, stack *Stack, list TokenList) {
 	var tempStack Stack
 	for list.HasToken() {
 		tempStack = append(tempStack, parseCall(env, &list, nil)...)
@@ -16,47 +14,47 @@ func parse(env *Env, stack *Stack, list tokens.TokenList) {
 	*stack = append(*stack, tempStack...)
 }
 
-func parseCall(env *Env, list *tokens.TokenList, argNames []string) Stack {
-	list.Expect(tokens.LeftParen)
+func parseCall(env *Env, list *TokenList, argNames []string) Stack {
+	list.Expect(TokenLeftParen)
 
-	callName := list.Expect(tokens.Symbol).Content
+	callName := list.Expect(TokenSymbol).Content
 
 	var stack Stack
 
 	switch callName {
 	case "let":
-		varName := list.Expect(tokens.Symbol).Content
+		varName := list.Expect(TokenSymbol).Content
 		varValue, varType := evalTokens(env, list)
 
 		env.SetVariable(varName, varValue, varType)
 	case "def":
-		fnName := list.Expect(tokens.Symbol).Content
+		fnName := list.Expect(TokenSymbol).Content
 		var argNames []string
 
-		list.Expect(tokens.LeftParen)
-		for list.Peek().Type != tokens.RightParen {
-			argName := list.Expect(tokens.Symbol).Content
+		list.Expect(TokenLeftParen)
+		for list.Peek().Type != TokenRightParen {
+			argName := list.Expect(TokenSymbol).Content
 			argNames = append(argNames, argName)
 		}
-		list.Expect(tokens.RightParen)
+		list.Expect(TokenRightParen)
 
 		id := env.CreateFn(int64(len(argNames)))
-		env.SetVariable(fnName, id, FunctionT)
+		env.SetVariable(fnName, id, TypeFunction)
 
 		var fnBody Stack
 
-		list.Expect(tokens.LeftParen)
-		for list.Peek().Type != tokens.RightParen {
+		list.Expect(TokenLeftParen)
+		for list.Peek().Type != TokenRightParen {
 			nextCall := parseArg(env, list, argNames)
 			fnBody = append(fnBody, nextCall...)
 		}
-		list.Expect(tokens.RightParen)
+		list.Expect(TokenRightParen)
 
 		env.SetFnBody(id, fnBody)
 	default:
 		var args []Stack
 
-		for list.Peek().Type != tokens.RightParen {
+		for list.Peek().Type != TokenRightParen {
 			args = append(args, parseArg(env, list, argNames))
 		}
 
@@ -86,25 +84,25 @@ func parseCall(env *Env, list *tokens.TokenList, argNames []string) Stack {
 		}
 	}
 
-	list.Expect(tokens.RightParen)
+	list.Expect(TokenRightParen)
 
 	return stack
 }
 
-func parseArg(env *Env, list *tokens.TokenList, argNames []string) Stack {
+func parseArg(env *Env, list *TokenList, argNames []string) Stack {
 	nextToken := list.Peek()
 
 	switch nextToken.Type {
-	case tokens.Integer:
+	case TokenInteger:
 		t := list.Consume()
 		i, _ := strconv.ParseInt(t.Content, 10, 64)
 		return []int64{InstrInteger, i}
-	case tokens.Float:
+	case TokenFloat:
 		t := list.Consume()
 		f, _ := strconv.ParseFloat(t.Content, 64)
 		index := env.InsertFloat(f)
 		return []int64{InstrFloat, index}
-	case tokens.Symbol:
+	case TokenSymbol:
 		t := list.Consume()
 
 		for id, name := range argNames {
@@ -122,7 +120,7 @@ func parseArg(env *Env, list *tokens.TokenList, argNames []string) Stack {
 			id := env.GetSymbol(t.Content)
 			return []int64{InstrVar, id}
 		}
-	case tokens.LeftParen:
+	case TokenLeftParen:
 		return parseCall(env, list, argNames)
 	default:
 		panic("Unexpected token while parsing arg")

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-
-	"github.com/ethandenny/yap/tokens"
 )
 
 func main() {
@@ -22,7 +20,7 @@ func main() {
 
 		env := NewEnv()
 		var stack Stack
-		var tokenList tokens.TokenList
+		var tokenList TokenList
 
 		fileScanner := bufio.NewScanner(file)
 		for fileScanner.Scan() {

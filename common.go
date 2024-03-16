@@ -19,11 +19,11 @@ const (
 type YapType int64
 
 const (
-	NoneT YapType = iota
-	FunctionT
-	IntegerT
-	FloatT
-	BoolT
+	TypeNone YapType = iota
+	TypeFunction
+	TypeInteger
+	TypeFloat
+	TypeBool
 )
 
 type Stack []int64

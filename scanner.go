@@ -1,12 +1,10 @@
 package main
 
-import "github.com/ethandenny/yap/tokens"
-
 type Scanner struct {
 	innerStr   string
 	strPos     int
 	lineNumber int
-	tokens     tokens.TokenList
+	tokens     TokenList
 }
 
 func (s *Scanner) getChar() byte {
@@ -21,8 +19,8 @@ func (s *Scanner) Len() int {
 	return len(s.innerStr) - s.strPos
 }
 
-func (s *Scanner) scanSingleChar(Type tokens.TokenType) {
-	s.tokens.Insert(tokens.Token{
+func (s *Scanner) scanSingleChar(Type TokenType) {
+	s.tokens.Insert(Token{
 		Type:       Type,
 		Content:    s.innerStr[s.strPos : s.strPos+1],
 		LineNumber: s.lineNumber,
@@ -31,7 +29,7 @@ func (s *Scanner) scanSingleChar(Type tokens.TokenType) {
 
 func (s *Scanner) scanNumber() {
 	start := s.strPos
-	Type := tokens.Integer
+	Type := TokenInteger
 
 	if s.getChar() == '-' {
 		s.strPos++
@@ -42,8 +40,8 @@ Loop:
 		switch s.getChar() {
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
 		case '.':
-			if Type == tokens.Integer {
-				Type = tokens.Float
+			if Type == TokenInteger {
+				Type = TokenFloat
 			} else {
 				panic("Floats aren't version numbers!")
 			}
@@ -55,7 +53,7 @@ Loop:
 
 	end := min(s.strPos+1, len(s.innerStr))
 
-	s.tokens.Insert(tokens.Token{
+	s.tokens.Insert(Token{
 		Type:       Type,
 		Content:    s.innerStr[start:end],
 		LineNumber: s.lineNumber,
@@ -76,14 +74,14 @@ Loop:
 
 	end := min(s.strPos+1, len(s.innerStr))
 
-	s.tokens.Insert(tokens.Token{
-		Type:       tokens.Symbol,
+	s.tokens.Insert(Token{
+		Type:       TokenSymbol,
 		Content:    s.innerStr[start:end],
 		LineNumber: s.lineNumber,
 	})
 }
 
-func scan(str string) tokens.TokenList {
+func scan(str string) TokenList {
 	s := Scanner{
 		innerStr:   str,
 		lineNumber: 1,
@@ -92,9 +90,9 @@ func scan(str string) tokens.TokenList {
 	for ; s.strPos < len(str); s.strPos++ {
 		switch s.getChar() {
 		case '(':
-			s.scanSingleChar(tokens.LeftParen)
+			s.scanSingleChar(TokenLeftParen)
 		case ')':
-			s.scanSingleChar(tokens.RightParen)
+			s.scanSingleChar(TokenRightParen)
 		case ' ':
 			continue
 		case '\n':

@@ -1,14 +1,14 @@
-package tokens
+package main
 
 type TokenType int8
 
 const (
-	None TokenType = iota
-	LeftParen
-	RightParen
-	Symbol
-	Integer
-	Float
+	TokenNone TokenType = iota
+	TokenLeftParen
+	TokenRightParen
+	TokenSymbol
+	TokenInteger
+	TokenFloat
 )
 
 type Token struct {

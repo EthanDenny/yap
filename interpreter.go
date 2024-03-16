@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-
-	"github.com/ethandenny/yap/tokens"
 )
 
 type Arg struct {
@@ -14,28 +12,28 @@ type Arg struct {
 func eval(env *Env, stack *Stack, args []Arg) (int64, YapType) {
 	switch popStack(stack) {
 	case InstrInteger:
-		return popStack(stack), IntegerT
+		return popStack(stack), TypeInteger
 	case InstrFloat:
-		return popStack(stack), FloatT
+		return popStack(stack), TypeFloat
 	case InstrAdd:
 		assertArgc(popStack(stack), 2)
 
 		a, aT := eval(env, stack, args)
 		b, bT := eval(env, stack, args)
 
-		if aT == IntegerT && bT == IntegerT {
+		if aT == TypeInteger && bT == TypeInteger {
 			r := a + b
-			return r, IntegerT
+			return r, TypeInteger
 		} else {
 			var aV float64
-			if aT == FloatT {
+			if aT == TypeFloat {
 				aV = env.GetFloat(a)
 			} else {
 				aV = float64(a)
 			}
 
 			var bV float64
-			if bT == FloatT {
+			if bT == TypeFloat {
 				bV = env.GetFloat(b)
 			} else {
 				bV = float64(b)
@@ -44,7 +42,7 @@ func eval(env *Env, stack *Stack, args []Arg) (int64, YapType) {
 			f := aV + bV
 			index := env.InsertFloat(f)
 
-			return index, FloatT
+			return index, TypeFloat
 		}
 	case InstrSub:
 		assertArgc(popStack(stack), 2)
@@ -52,19 +50,19 @@ func eval(env *Env, stack *Stack, args []Arg) (int64, YapType) {
 		a, aT := eval(env, stack, args)
 		b, bT := eval(env, stack, args)
 
-		if aT == IntegerT && bT == IntegerT {
+		if aT == TypeInteger && bT == TypeInteger {
 			r := a - b
-			return r, IntegerT
+			return r, TypeInteger
 		} else {
 			var aV float64
-			if aT == FloatT {
+			if aT == TypeFloat {
 				aV = env.GetFloat(a)
 			} else {
 				aV = float64(a)
 			}
 
 			var bV float64
-			if bT == FloatT {
+			if bT == TypeFloat {
 				bV = env.GetFloat(b)
 			} else {
 				bV = float64(b)
@@ -73,7 +71,7 @@ func eval(env *Env, stack *Stack, args []Arg) (int64, YapType) {
 			f := aV - bV
 			index := env.InsertFloat(f)
 
-			return index, FloatT
+			return index, TypeFloat
 		}
 	case InstrEq:
 		assertArgc(popStack(stack), 2)
@@ -86,13 +84,13 @@ func eval(env *Env, stack *Stack, args []Arg) (int64, YapType) {
 		if a == b {
 			if aT == bT {
 				result = 1
-			} else if (aT == IntegerT && bT == FloatT) ||
-				(aT == FloatT && bT == IntegerT) {
+			} else if (aT == TypeInteger && bT == TypeFloat) ||
+				(aT == TypeFloat && bT == TypeInteger) {
 				result = 1
 			}
 		}
 
-		return result, BoolT
+		return result, TypeBool
 	case InstrPrint:
 		argc := popStack(stack)
 
@@ -101,11 +99,11 @@ func eval(env *Env, stack *Stack, args []Arg) (int64, YapType) {
 			v, t := eval(env, stack, args)
 
 			switch t {
-			case IntegerT:
+			case TypeInteger:
 				fmt.Print(v, " ")
-			case FloatT:
+			case TypeFloat:
 				fmt.Print(env.GetFloat(v), " ")
-			case BoolT:
+			case TypeBool:
 				if v == 1 {
 					fmt.Print("true")
 				} else {
@@ -151,7 +149,7 @@ func eval(env *Env, stack *Stack, args []Arg) (int64, YapType) {
 
 		pred, predT := eval(env, stack, args)
 
-		if predT != BoolT {
+		if predT != TypeBool {
 			panic("Need boolean for predicate")
 		}
 
@@ -165,13 +163,13 @@ func eval(env *Env, stack *Stack, args []Arg) (int64, YapType) {
 			return v, vT
 		}
 	case InstrBool:
-		return popStack(stack), BoolT
+		return popStack(stack), TypeBool
 	default:
 		fmt.Println(stack)
 		panic("Unrecognized instruction")
 	}
 
-	return 0, NoneT
+	return 0, TypeNone
 }
 
 func popArg(env *Env, stack *Stack) {
@@ -221,7 +219,7 @@ func popArg(env *Env, stack *Stack) {
 	}
 }
 
-func evalTokens(env *Env, list *tokens.TokenList) (int64, YapType) {
+func evalTokens(env *Env, list *TokenList) (int64, YapType) {
 	stack := parseArg(env, list, nil)
 	flipStack(&stack)
 	return eval(env, &stack, nil)
