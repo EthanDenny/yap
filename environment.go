@@ -20,6 +20,9 @@ type Env struct {
 
 	floats     map[int64]float64
 	floatIndex int64
+
+	strings     map[int64]string
+	stringIndex int64
 }
 
 func NewEnv() Env {
@@ -33,6 +36,9 @@ func NewEnv() Env {
 
 		floats:     make(map[int64]float64),
 		floatIndex: 0,
+
+		strings:     make(map[int64]string),
+		stringIndex: 0,
 	}
 }
 
@@ -45,6 +51,17 @@ func (env *Env) InsertFloat(f float64) int64 {
 
 func (env *Env) GetFloat(index int64) float64 {
 	return env.floats[index]
+}
+
+func (env *Env) InsertString(s string) int64 {
+	env.strings[env.stringIndex] = s
+	index := env.stringIndex
+	env.stringIndex++
+	return index
+}
+
+func (env *Env) GetString(index int64) string {
+	return env.strings[index]
 }
 
 func (env *Env) SetVariable(name string, value int64, Type YapType) {

@@ -4,6 +4,7 @@ const (
 	InstrNone int64 = iota
 	InstrInteger
 	InstrFloat
+	InstrString
 	InstrVar
 	InstrBool
 	InstrAdd
@@ -14,6 +15,9 @@ const (
 	InstrArg
 	InstrIf
 	InstrEq
+	InstrPush
+	InstrHead
+	InstrTail
 )
 
 type YapType int64
@@ -24,6 +28,7 @@ const (
 	TypeInteger
 	TypeFloat
 	TypeBool
+	TypeString
 )
 
 type Stack []int64

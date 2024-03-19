@@ -60,6 +60,31 @@ Loop:
 	})
 }
 
+func (s *Scanner) scanString() {
+	s.strPos++
+	start := s.strPos
+	foundClosingQuote := false
+
+Loop:
+	for ; s.strPos < len(s.innerStr); s.strPos++ {
+		switch s.getChar() {
+		case '"':
+			foundClosingQuote = true
+			break Loop
+		}
+	}
+
+	if !foundClosingQuote {
+		panic("Expected closing quote, found EOF")
+	}
+
+	s.tokens.Insert(Token{
+		Type:       TokenString,
+		Content:    s.innerStr[start:s.strPos],
+		LineNumber: s.lineNumber,
+	})
+}
+
 func (s *Scanner) scanSymbol() {
 	start := s.strPos
 
@@ -111,6 +136,8 @@ func scan(str string) TokenList {
 			} else {
 				s.scanSymbol()
 			}
+		case '"':
+			s.scanString()
 		default:
 			s.scanSymbol()
 		}

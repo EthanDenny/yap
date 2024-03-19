@@ -25,7 +25,6 @@ func parseCall(env *Env, list *TokenList, argNames []string) Stack {
 	case "let":
 		varName := list.Expect(TokenSymbol).Content
 		varValue, varType := evalTokens(env, list)
-
 		env.SetVariable(varName, varValue, varType)
 	case "def":
 		fnName := list.Expect(TokenSymbol).Content
@@ -59,11 +58,14 @@ func parseCall(env *Env, list *TokenList, argNames []string) Stack {
 		}
 
 		var builtIns = map[string]int64{
-			"+":   InstrAdd,
-			"yap": InstrPrint,
-			"-":   InstrSub,
-			"if":  InstrIf,
-			"=":   InstrEq,
+			"+":    InstrAdd,
+			"yap":  InstrPrint,
+			"-":    InstrSub,
+			"if":   InstrIf,
+			"=":    InstrEq,
+			"push": InstrPush,
+			"head": InstrHead,
+			"tail": InstrTail,
 		}
 
 		if f, containsKey := builtIns[callName]; containsKey {
@@ -102,6 +104,10 @@ func parseArg(env *Env, list *TokenList, argNames []string) Stack {
 		f, _ := strconv.ParseFloat(t.Content, 64)
 		index := env.InsertFloat(f)
 		return []int64{InstrFloat, index}
+	case TokenString:
+		t := list.Consume()
+		index := env.InsertString(t.Content)
+		return []int64{InstrString, index}
 	case TokenSymbol:
 		t := list.Consume()
 

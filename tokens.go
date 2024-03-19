@@ -9,6 +9,7 @@ const (
 	TokenSymbol
 	TokenInteger
 	TokenFloat
+	TokenString
 )
 
 type Token struct {
