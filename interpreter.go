@@ -4,12 +4,7 @@ import (
 	"fmt"
 )
 
-type Arg struct {
-	v int64
-	t YapType
-}
-
-func eval(env *Env, stack *Stack, args []Arg) (int64, YapType) {
+func eval(env *Env, symbols *SymbolTable, stack *Stack) (int64, YapType) {
 	switch popStack(stack) {
 	case InstrInteger:
 		return popStack(stack), TypeInteger
@@ -20,8 +15,8 @@ func eval(env *Env, stack *Stack, args []Arg) (int64, YapType) {
 	case InstrAdd:
 		assertArgc(popStack(stack), 2)
 
-		a, aT := eval(env, stack, args)
-		b, bT := eval(env, stack, args)
+		a, aT := eval(env, symbols, stack)
+		b, bT := eval(env, symbols, stack)
 
 		if aT == TypeInteger && bT == TypeInteger {
 			r := a + b
@@ -49,8 +44,8 @@ func eval(env *Env, stack *Stack, args []Arg) (int64, YapType) {
 	case InstrSub:
 		assertArgc(popStack(stack), 2)
 
-		a, aT := eval(env, stack, args)
-		b, bT := eval(env, stack, args)
+		a, aT := eval(env, symbols, stack)
+		b, bT := eval(env, symbols, stack)
 
 		if aT == TypeInteger && bT == TypeInteger {
 			r := a - b
@@ -78,8 +73,8 @@ func eval(env *Env, stack *Stack, args []Arg) (int64, YapType) {
 	case InstrEq:
 		assertArgc(popStack(stack), 2)
 
-		a, aT := eval(env, stack, args)
-		b, bT := eval(env, stack, args)
+		a, aT := eval(env, symbols, stack)
+		b, bT := eval(env, symbols, stack)
 
 		var result int64 = 0
 
@@ -121,7 +116,7 @@ func eval(env *Env, stack *Stack, args []Arg) (int64, YapType) {
 
 		var i int64 = 0
 		for ; i < argc; i++ {
-			v, t := eval(env, stack, args)
+			v, t := eval(env, symbols, stack)
 
 			switch t {
 			case TypeInteger:
@@ -145,48 +140,46 @@ func eval(env *Env, stack *Stack, args []Arg) (int64, YapType) {
 		return env.GetVariable(id)
 	case InstrFn:
 		id := popStack(stack)
-		argc, body := env.GetFn(id)
+		argNames, body := env.GetFn(id)
+		argc := int64(len(argNames))
 		assertArgc(popStack(stack), argc)
 
-		var fnArgs []Arg
+		fnSymbols := NewSymbolTable(symbols)
 
 		var i int64 = 0
 		for ; i < argc; i++ {
-			v, t := eval(env, stack, args)
-			fnArgs = append(fnArgs, Arg{
-				v: v,
-				t: t,
-			})
+			v, t := eval(env, symbols, stack)
+			env.SetVariable(fnSymbols, argNames[i], v, t)
+
 		}
 
 		var returnV int64
 		var returnT YapType
 
-		for len(body) > 0 {
-			returnV, returnT = eval(env, &body, fnArgs)
+		var bodyStack Stack
+		parse(env, fnSymbols, &bodyStack, body)
+
+		for len(bodyStack) > 0 {
+			returnV, returnT = eval(env, fnSymbols, &bodyStack)
 		}
 
 		return returnV, returnT
-	case InstrArg:
-		argN := popStack(stack)
-		arg := args[argN]
-		return arg.v, arg.t
 	case InstrIf:
 		assertArgc(popStack(stack), 3)
 
-		pred, predT := eval(env, stack, args)
+		pred, predT := eval(env, symbols, stack)
 
 		if predT != TypeBool {
 			panic("Need boolean for predicate")
 		}
 
 		if pred == 1 {
-			v, vT := eval(env, stack, args)
+			v, vT := eval(env, symbols, stack)
 			popArg(env, stack)
 			return v, vT
 		} else {
 			popArg(env, stack)
-			v, vT := eval(env, stack, args)
+			v, vT := eval(env, symbols, stack)
 			return v, vT
 		}
 	case InstrBool:
@@ -194,8 +187,8 @@ func eval(env *Env, stack *Stack, args []Arg) (int64, YapType) {
 	case InstrPush:
 		assertArgc(popStack(stack), 2)
 
-		e, eT := eval(env, stack, args)
-		l, lT := eval(env, stack, args)
+		e, eT := eval(env, symbols, stack)
+		l, lT := eval(env, symbols, stack)
 
 		if eT == TypeString && lT == TypeString {
 			eS := env.GetString(e)
@@ -206,7 +199,7 @@ func eval(env *Env, stack *Stack, args []Arg) (int64, YapType) {
 	case InstrHead:
 		assertArgc(popStack(stack), 1)
 
-		l, lT := eval(env, stack, args)
+		l, lT := eval(env, symbols, stack)
 
 		if lT == TypeString {
 			lS := env.GetString(l)
@@ -222,7 +215,7 @@ func eval(env *Env, stack *Stack, args []Arg) (int64, YapType) {
 	case InstrTail:
 		assertArgc(popStack(stack), 1)
 
-		l, lT := eval(env, stack, args)
+		l, lT := eval(env, symbols, stack)
 
 		if lT == TypeString {
 			lS := env.GetString(l)
@@ -244,11 +237,12 @@ func eval(env *Env, stack *Stack, args []Arg) (int64, YapType) {
 
 func popArg(env *Env, stack *Stack) {
 	switch popStack(stack) {
-	case InstrInteger, InstrFloat, InstrString, InstrVar, InstrArg, InstrBool:
+	case InstrInteger, InstrFloat, InstrString, InstrVar, InstrBool:
 		popStack(stack)
 	case InstrFn:
 		id := popStack(stack)
-		argc, _ := env.GetFn(id)
+		argNames, _ := env.GetFn(id)
+		argc := int64(len(argNames))
 		assertArgc(popStack(stack), argc)
 		var i int64 = 0
 		for ; i < argc; i++ {
@@ -263,10 +257,10 @@ func popArg(env *Env, stack *Stack) {
 	}
 }
 
-func evalTokens(env *Env, list *TokenList) (int64, YapType) {
-	stack := parseArg(env, list, nil)
+func evalTokens(env *Env, symbols *SymbolTable, list *TokenList) (int64, YapType) {
+	stack := parseArg(env, symbols, list, nil)
 	flipStack(&stack)
-	return eval(env, &stack, nil)
+	return eval(env, symbols, &stack)
 }
 
 func assertArgc(argc int64, n int64) {
@@ -275,7 +269,7 @@ func assertArgc(argc int64, n int64) {
 	}
 }
 
-func disassemble(env *Env, stack *Stack, args []Arg) {
+func disassemble(env *Env, stack *Stack) {
 	switch popStack(stack) {
 	case InstrInteger:
 		fmt.Print(popStack(stack))
@@ -286,37 +280,37 @@ func disassemble(env *Env, stack *Stack, args []Arg) {
 	case InstrAdd:
 		popStack(stack)
 		fmt.Print("(ADD ")
-		disassemble(env, stack, args)
+		disassemble(env, stack)
 		fmt.Print(" ")
-		disassemble(env, stack, args)
+		disassemble(env, stack)
 		fmt.Print(")")
 	case InstrSub:
 		popStack(stack)
 		fmt.Print("(SUB ")
-		disassemble(env, stack, args)
+		disassemble(env, stack)
 		fmt.Print(" ")
-		disassemble(env, stack, args)
+		disassemble(env, stack)
 		fmt.Print(")")
 	case InstrPush:
 		popStack(stack)
 		fmt.Print("(PUSH ")
-		disassemble(env, stack, args)
+		disassemble(env, stack)
 		fmt.Print(" ")
-		disassemble(env, stack, args)
+		disassemble(env, stack)
 		fmt.Print(")")
 	case InstrEq:
 		popStack(stack)
 		fmt.Print("(EQ ")
-		disassemble(env, stack, args)
+		disassemble(env, stack)
 		fmt.Print(" ")
-		disassemble(env, stack, args)
+		disassemble(env, stack)
 		fmt.Print(")")
 	case InstrPrint:
 		argc := popStack(stack)
 		fmt.Print("(PRINT ")
 		var i int64 = 0
 		for ; i < argc; i++ {
-			disassemble(env, stack, args)
+			disassemble(env, stack)
 			if i+1 < argc {
 				fmt.Print(" ")
 			}
@@ -333,41 +327,20 @@ func disassemble(env *Env, stack *Stack, args []Arg) {
 		}
 		var i int64 = 0
 		for ; i < argc; i++ {
-			disassemble(env, stack, args)
+			disassemble(env, stack)
 			if i+1 < argc {
 				fmt.Print(" ")
 			}
 		}
 		fmt.Print(")")
-	case InstrArg:
-		argN := popStack(stack)
-		fmt.Print("(ARG ", argN, " => ")
-
-		arg := args[argN]
-		switch arg.t {
-		case TypeInteger:
-			fmt.Print(arg.v)
-		case TypeFloat:
-			fmt.Print(env.GetFloat(arg.v))
-		case TypeString:
-			fmt.Print("\"", env.GetString(arg.v), "\"")
-		case TypeBool:
-			if arg.v == 1 {
-				fmt.Print("true")
-			} else {
-				fmt.Print("false")
-			}
-		}
-
-		fmt.Print(")")
 	case InstrIf:
 		popStack(stack)
 		fmt.Print("(IF ")
-		disassemble(env, stack, args)
+		disassemble(env, stack)
 		fmt.Print(" THEN ")
-		disassemble(env, stack, args)
+		disassemble(env, stack)
 		fmt.Print(" ELSE ")
-		disassemble(env, stack, args)
+		disassemble(env, stack)
 		fmt.Print(")")
 	case InstrBool:
 		if popStack(stack) == 1 {
@@ -378,12 +351,12 @@ func disassemble(env *Env, stack *Stack, args []Arg) {
 	case InstrHead:
 		popStack(stack)
 		fmt.Print("(HEAD ")
-		disassemble(env, stack, args)
+		disassemble(env, stack)
 		fmt.Print(")")
 	case InstrTail:
 		popStack(stack)
 		fmt.Print("(TAIL ")
-		disassemble(env, stack, args)
+		disassemble(env, stack)
 		fmt.Print(")")
 	default:
 	}

@@ -12,7 +12,6 @@ const (
 	InstrPrint
 	InstrLet
 	InstrFn
-	InstrArg
 	InstrIf
 	InstrEq
 	InstrPush

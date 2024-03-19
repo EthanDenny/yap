@@ -9,6 +9,8 @@ import (
 
 func main() {
 	reader := bufio.NewReader(os.Stdin)
+	env := NewEnv()
+	symbols := NewSymbolTable(nil)
 
 	if len(os.Args) >= 2 {
 		fileName := os.Args[1]
@@ -18,7 +20,6 @@ func main() {
 		}
 		defer file.Close()
 
-		env := NewEnv()
 		var stack Stack
 		var tokenList TokenList
 
@@ -29,10 +30,10 @@ func main() {
 			tokenList.Append(scan(line))
 		}
 
-		parse(&env, &stack, tokenList)
+		parse(env, symbols, &stack, tokenList)
 
 		for len(stack) > 0 {
-			eval(&env, &stack, nil)
+			eval(env, symbols, &stack)
 		}
 	} else {
 		env := NewEnv()
@@ -49,8 +50,8 @@ func main() {
 
 			var stack Stack
 
-			parse(&env, &stack, tokenList)
-			eval(&env, &stack, nil)
+			parse(env, symbols, &stack, tokenList)
+			eval(env, symbols, &stack)
 		}
 	}
 }
