@@ -17,6 +17,7 @@ const (
 	InstrPush
 	InstrHead
 	InstrTail
+	InstrList
 )
 
 type YapType int64
@@ -28,6 +29,7 @@ const (
 	TypeFloat
 	TypeBool
 	TypeString
+	TypeList
 )
 
 type Stack []int64

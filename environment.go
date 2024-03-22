@@ -32,6 +32,11 @@ type Function struct {
 	Body     TokenList
 }
 
+type List struct {
+	Head int64
+	Tail int64
+}
+
 type Env struct {
 	symbols map[string]int64
 
@@ -46,6 +51,9 @@ type Env struct {
 
 	strings     map[int64]string
 	stringIndex int64
+
+	Lists     map[int64]List
+	listIndex int64
 }
 
 func NewEnv() *Env {
@@ -61,6 +69,9 @@ func NewEnv() *Env {
 
 		strings:     make(map[int64]string),
 		stringIndex: 0,
+
+		Lists:     make(map[int64]List),
+		listIndex: 0,
 	}
 }
 
@@ -135,4 +146,29 @@ func (env *Env) GetFn(id int64) ([]string, TokenList) {
 	}
 
 	panic("Could not find function")
+}
+
+func (env *Env) CreateList(nextID int64, value int64, Type YapType) int64 {
+	env.variables[env.variableIndex] = Variable{
+		value,
+		Type,
+	}
+
+	env.Lists[env.listIndex] = List{
+		env.variableIndex,
+		nextID,
+	}
+
+	env.variableIndex++
+	env.listIndex++
+
+	return env.listIndex - 1
+}
+
+func (env *Env) GetList(id int64) (int64, int64) {
+	if l, ok := env.Lists[id]; ok {
+		return l.Head, l.Tail
+	}
+
+	panic("Could not find list")
 }

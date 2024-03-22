@@ -77,6 +77,7 @@ func parseCall(env *Env, symbols *SymbolTable, list *TokenList, argNames []strin
 			"push": InstrPush,
 			"head": InstrHead,
 			"tail": InstrTail,
+			"list": InstrList,
 		}
 
 		if f, containsKey := builtIns[callName]; containsKey {
@@ -129,6 +130,8 @@ func parseArg(env *Env, symbols *SymbolTable, list *TokenList, argNames []string
 		}
 
 		switch t.Content {
+		case "none":
+			return []int64{InstrNone, 0}
 		case "true":
 			return []int64{InstrBool, 1}
 		case "false":

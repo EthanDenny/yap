@@ -109,6 +109,9 @@ func eval(env *Env, symbols *SymbolTable, stack *Stack) (int64, YapType) {
 				result = 1
 			}
 		}
+		if aT == TypeNone && bT == TypeNone {
+			result = 1
+		}
 
 		return result, TypeBool
 	case InstrPrint:
@@ -117,21 +120,8 @@ func eval(env *Env, symbols *SymbolTable, stack *Stack) (int64, YapType) {
 		var i int64 = 0
 		for ; i < argc; i++ {
 			v, t := eval(env, symbols, stack)
-
-			switch t {
-			case TypeInteger:
-				fmt.Print(v, " ")
-			case TypeFloat:
-				fmt.Print(env.GetFloat(v), " ")
-			case TypeString:
-				fmt.Print(env.GetString(v), " ")
-			case TypeBool:
-				if v == 1 {
-					fmt.Print("true")
-				} else {
-					fmt.Print("false")
-				}
-			}
+			printArg(env, v, t)
+			fmt.Print(" ")
 		}
 
 		fmt.Println()
@@ -195,13 +185,17 @@ func eval(env *Env, symbols *SymbolTable, stack *Stack) (int64, YapType) {
 			lS := env.GetString(l)
 			index := env.InsertString(eS + lS)
 			return index, TypeString
+		} else if lT == TypeList {
+			id := env.CreateList(l, e, eT)
+			return id, TypeList
 		}
 	case InstrHead:
 		assertArgc(popStack(stack), 1)
 
 		l, lT := eval(env, symbols, stack)
 
-		if lT == TypeString {
+		switch lT {
+		case TypeString:
 			lS := env.GetString(l)
 			var head string
 			if len(lS) > 1 {
@@ -211,13 +205,20 @@ func eval(env *Env, symbols *SymbolTable, stack *Stack) (int64, YapType) {
 			}
 			index := env.InsertString(head)
 			return index, TypeString
+		case TypeList:
+			if l != -1 {
+				head, _ := env.GetList(l)
+				v, t := env.GetVariable(head)
+				return v, t
+			}
 		}
 	case InstrTail:
 		assertArgc(popStack(stack), 1)
 
 		l, lT := eval(env, symbols, stack)
 
-		if lT == TypeString {
+		switch lT {
+		case TypeString:
 			lS := env.GetString(l)
 			var tail string
 			if len(lS) > 1 {
@@ -227,7 +228,32 @@ func eval(env *Env, symbols *SymbolTable, stack *Stack) (int64, YapType) {
 			}
 			index := env.InsertString(tail)
 			return index, TypeString
+		case TypeList:
+			_, tail := env.GetList(l)
+			if tail != -1 {
+				return tail, TypeList
+			}
 		}
+	case InstrList:
+		argc := popStack(stack)
+
+		var elements []Variable
+
+		var i int64 = 0
+		for ; i < argc; i++ {
+			v, t := eval(env, symbols, stack)
+			elements = append(elements, Variable{v, t})
+		}
+
+		var nextID int64 = -1 // Nil
+		for i := len(elements) - 1; i >= 0; i-- {
+			nextID = env.CreateList(nextID, elements[i].Value, elements[i].Type)
+		}
+
+		return nextID, TypeList
+	case InstrNone:
+		popStack(stack)
+		return 0, TypeNone
 	default:
 		panic("Unrecognized instruction")
 	}
@@ -236,8 +262,9 @@ func eval(env *Env, symbols *SymbolTable, stack *Stack) (int64, YapType) {
 }
 
 func popArg(env *Env, stack *Stack) {
-	switch popStack(stack) {
-	case InstrInteger, InstrFloat, InstrString, InstrVar, InstrBool:
+	instr := popStack(stack)
+	switch instr {
+	case InstrInteger, InstrFloat, InstrString, InstrVar, InstrBool, InstrNone:
 		popStack(stack)
 	case InstrFn:
 		id := popStack(stack)
@@ -270,6 +297,12 @@ func assertArgc(argc int64, n int64) {
 }
 
 func disassemble(env *Env, stack *Stack) {
+	stackCopy := *stack
+	dis(env, &stackCopy)
+	fmt.Println()
+}
+
+func dis(env *Env, stack *Stack) {
 	switch popStack(stack) {
 	case InstrInteger:
 		fmt.Print(popStack(stack))
@@ -277,44 +310,40 @@ func disassemble(env *Env, stack *Stack) {
 		fmt.Print(env.GetFloat(popStack(stack)))
 	case InstrString:
 		fmt.Print("\"", env.GetString(popStack(stack)), "\"")
+	case InstrNone:
+		fmt.Print("NONE")
 	case InstrAdd:
 		popStack(stack)
 		fmt.Print("(ADD ")
-		disassemble(env, stack)
+		dis(env, stack)
 		fmt.Print(" ")
-		disassemble(env, stack)
+		dis(env, stack)
 		fmt.Print(")")
 	case InstrSub:
 		popStack(stack)
 		fmt.Print("(SUB ")
-		disassemble(env, stack)
+		dis(env, stack)
 		fmt.Print(" ")
-		disassemble(env, stack)
+		dis(env, stack)
 		fmt.Print(")")
 	case InstrPush:
 		popStack(stack)
 		fmt.Print("(PUSH ")
-		disassemble(env, stack)
+		dis(env, stack)
 		fmt.Print(" ")
-		disassemble(env, stack)
+		dis(env, stack)
 		fmt.Print(")")
 	case InstrEq:
 		popStack(stack)
 		fmt.Print("(EQ ")
-		disassemble(env, stack)
+		dis(env, stack)
 		fmt.Print(" ")
-		disassemble(env, stack)
+		dis(env, stack)
 		fmt.Print(")")
 	case InstrPrint:
 		argc := popStack(stack)
 		fmt.Print("(PRINT ")
-		var i int64 = 0
-		for ; i < argc; i++ {
-			disassemble(env, stack)
-			if i+1 < argc {
-				fmt.Print(" ")
-			}
-		}
+		disArgs(env, stack, argc)
 		fmt.Print(")")
 	case InstrVar:
 		fmt.Print("(VAR ", popStack(stack), ")")
@@ -325,22 +354,16 @@ func disassemble(env *Env, stack *Stack) {
 		if argc > 0 {
 			fmt.Print(" ")
 		}
-		var i int64 = 0
-		for ; i < argc; i++ {
-			disassemble(env, stack)
-			if i+1 < argc {
-				fmt.Print(" ")
-			}
-		}
+		disArgs(env, stack, argc)
 		fmt.Print(")")
 	case InstrIf:
 		popStack(stack)
 		fmt.Print("(IF ")
-		disassemble(env, stack)
+		dis(env, stack)
 		fmt.Print(" THEN ")
-		disassemble(env, stack)
+		dis(env, stack)
 		fmt.Print(" ELSE ")
-		disassemble(env, stack)
+		dis(env, stack)
 		fmt.Print(")")
 	case InstrBool:
 		if popStack(stack) == 1 {
@@ -351,13 +374,59 @@ func disassemble(env *Env, stack *Stack) {
 	case InstrHead:
 		popStack(stack)
 		fmt.Print("(HEAD ")
-		disassemble(env, stack)
+		dis(env, stack)
 		fmt.Print(")")
 	case InstrTail:
 		popStack(stack)
 		fmt.Print("(TAIL ")
-		disassemble(env, stack)
+		dis(env, stack)
+		fmt.Print(")")
+	case InstrList:
+		argc := popStack(stack)
+		fmt.Print("(LIST ")
+		disArgs(env, stack, argc)
 		fmt.Print(")")
 	default:
+	}
+}
+
+func disArgs(env *Env, stack *Stack, argc int64) {
+	var i int64 = 0
+	for ; i < argc; i++ {
+		dis(env, stack)
+		if i+1 < argc {
+			fmt.Print(" ")
+		}
+	}
+}
+
+func printArg(env *Env, v int64, t YapType) {
+	switch t {
+	case TypeInteger:
+		fmt.Print(v)
+	case TypeFloat:
+		fmt.Print(env.GetFloat(v))
+	case TypeNone:
+		fmt.Print("none")
+	case TypeString:
+		fmt.Print("\"", env.GetString(v), "\"")
+	case TypeBool:
+		if v == 1 {
+			fmt.Print("true")
+		} else {
+			fmt.Print("false")
+		}
+	case TypeList:
+		head, tail := env.GetList(v)
+		v, t := env.GetVariable(head)
+		fmt.Print("[")
+		printArg(env, v, t)
+		for tail != -1 {
+			head, tail = env.GetList(tail)
+			v, t = env.GetVariable(head)
+			fmt.Print(", ")
+			printArg(env, v, t)
+		}
+		fmt.Print("]")
 	}
 }
