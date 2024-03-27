@@ -6,11 +6,19 @@ import (
 
 func parse(env *Env, symbols *SymbolTable, stack *Stack, list TokenList) {
 	var tempStack Stack
-	for list.HasToken() {
-		tempStack = append(tempStack, parseCall(env, symbols, &list, nil)...)
-	}
-	flipStack(&tempStack)
 
+	for list.HasToken() {
+		switch list.Peek().Type {
+		case TokenLeftParen:
+			tempStack = append(tempStack, parseCall(env, symbols, &list, nil)...)
+		case TokenLeftBracket:
+			tempStack = append(tempStack, parseList(env, symbols, &list, nil)...)
+		case TokenLeftBrace:
+			tempStack = append(tempStack, parseBody(env, symbols, &list)...)
+		}
+	}
+
+	flipStack(&tempStack)
 	*stack = append(*stack, tempStack...)
 }
 
@@ -22,7 +30,7 @@ func parseCall(env *Env, symbols *SymbolTable, list *TokenList, argNames []strin
 	var stack Stack
 
 	switch callName {
-	case "let":
+	case "=":
 		varName := list.Expect(TokenSymbol).Content
 		varValue, varType := evalTokens(env, symbols, list)
 		env.SetVariable(symbols, varName, varValue, varType)
@@ -30,37 +38,37 @@ func parseCall(env *Env, symbols *SymbolTable, list *TokenList, argNames []strin
 		fnName := list.Expect(TokenSymbol).Content
 		var argNames []string
 
-		list.Expect(TokenLeftParen)
-		for list.Peek().Type != TokenRightParen {
+		list.Expect(TokenLeftBracket)
+		for list.Peek().Type != TokenRightBracket {
 			argName := list.Expect(TokenSymbol).Content
 			argNames = append(argNames, argName)
 		}
-		list.Expect(TokenRightParen)
+		list.Expect(TokenRightBracket)
 
 		id := env.CreateFn(argNames)
 		env.SetVariable(symbols, fnName, id, TypeFunction)
 
-		var fnBody TokenList
+		var body TokenList
 
-		list.Expect(TokenLeftParen)
-		parenCount := 1
-		for parenCount > 0 {
+		list.Expect(TokenLeftBrace)
+		braceCount := 1
+		for braceCount > 0 {
 			switch list.Peek().Type {
-			case TokenLeftParen:
-				parenCount++
-				fnBody.Insert(list.Consume())
-			case TokenRightParen:
-				parenCount--
-				if parenCount > 0 {
-					fnBody.Insert(list.Consume())
+			case TokenLeftBrace:
+				braceCount++
+				body.Insert(list.Consume())
+			case TokenRightBrace:
+				braceCount--
+				if braceCount > 0 {
+					body.Insert(list.Consume())
 				}
 			default:
-				fnBody.Insert(list.Consume())
+				body.Insert(list.Consume())
 			}
 		}
-		list.Expect(TokenRightParen)
+		list.Expect(TokenRightBrace)
 
-		env.SetFnBody(id, fnBody)
+		env.SetFnBody(id, body)
 	default:
 		var args []Stack
 
@@ -69,15 +77,15 @@ func parseCall(env *Env, symbols *SymbolTable, list *TokenList, argNames []strin
 		}
 
 		var builtIns = map[string]int64{
-			"+":    InstrAdd,
-			"yap":  InstrPrint,
-			"-":    InstrSub,
-			"if":   InstrIf,
-			"=":    InstrEq,
-			"push": InstrPush,
-			"head": InstrHead,
-			"tail": InstrTail,
-			"list": InstrList,
+			"+":     InstrAdd,
+			"print": InstrPrint,
+			"-":     InstrSub,
+			"if":    InstrIf,
+			"==":    InstrEq,
+			"++":    InstrPush,
+			"head":  InstrHead,
+			"tail":  InstrTail,
+			"stoi":  InstrStoi,
 		}
 
 		if f, containsKey := builtIns[callName]; containsKey {
@@ -99,6 +107,67 @@ func parseCall(env *Env, symbols *SymbolTable, list *TokenList, argNames []strin
 	}
 
 	list.Expect(TokenRightParen)
+
+	return stack
+}
+
+func parseList(env *Env, symbols *SymbolTable, list *TokenList, argNames []string) Stack {
+	var elements []Variable
+
+	list.Expect(TokenLeftBracket)
+
+	for list.Peek().Type != TokenRightBracket {
+		stack := parseArg(env, symbols, list, argNames)
+		flipStack(&stack)
+		v, t := eval(env, symbols, &stack)
+		elements = append(elements, Variable{v, t})
+	}
+
+	list.Expect(TokenRightBracket)
+
+	var id int64 = -1 // Nil
+	for i := len(elements) - 1; i >= 0; i-- {
+		id = env.CreateList(id, elements[i].Value, elements[i].Type)
+	}
+
+	var stack Stack
+
+	stack = append(stack, InstrList)
+	stack = append(stack, id)
+
+	return stack
+}
+
+func parseBody(env *Env, symbols *SymbolTable, list *TokenList) Stack {
+	id := env.CreateFn(make([]string, 0))
+
+	var body TokenList
+
+	list.Expect(TokenLeftBrace)
+	braceCount := 1
+	for braceCount > 0 {
+		switch list.Peek().Type {
+		case TokenLeftBrace:
+			braceCount++
+			body.Insert(list.Consume())
+		case TokenRightBrace:
+			braceCount--
+			if braceCount > 0 {
+				body.Insert(list.Consume())
+			}
+		default:
+			body.Insert(list.Consume())
+		}
+	}
+	list.Expect(TokenRightBrace)
+
+	env.SetFnBody(id, body)
+
+	var stack Stack
+
+	stack = append(stack, InstrFn)
+	stack = append(stack, id)
+	stack = append(stack, 0)
 
 	return stack
 }
@@ -142,6 +211,10 @@ func parseArg(env *Env, symbols *SymbolTable, list *TokenList, argNames []string
 		}
 	case TokenLeftParen:
 		return parseCall(env, symbols, list, argNames)
+	case TokenLeftBracket:
+		return parseList(env, symbols, list, argNames)
+	case TokenLeftBrace:
+		return parseBody(env, symbols, list)
 	default:
 		panic("Unexpected token while parsing arg")
 	}

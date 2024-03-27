@@ -118,6 +118,14 @@ func scan(str string) TokenList {
 			s.scanSingleChar(TokenLeftParen)
 		case ')':
 			s.scanSingleChar(TokenRightParen)
+		case '[':
+			s.scanSingleChar(TokenLeftBracket)
+		case ']':
+			s.scanSingleChar(TokenRightBracket)
+		case '{':
+			s.scanSingleChar(TokenLeftBrace)
+		case '}':
+			s.scanSingleChar(TokenRightBrace)
 		case ' ':
 			continue
 		case '\n':

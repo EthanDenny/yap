@@ -2,9 +2,12 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 )
 
 func eval(env *Env, symbols *SymbolTable, stack *Stack) (int64, YapType) {
+	disassemble(env, stack)
+
 	switch popStack(stack) {
 	case InstrInteger:
 		return popStack(stack), TypeInteger
@@ -235,25 +238,19 @@ func eval(env *Env, symbols *SymbolTable, stack *Stack) (int64, YapType) {
 			}
 		}
 	case InstrList:
-		argc := popStack(stack)
-
-		var elements []Variable
-
-		var i int64 = 0
-		for ; i < argc; i++ {
-			v, t := eval(env, symbols, stack)
-			elements = append(elements, Variable{v, t})
-		}
-
-		var nextID int64 = -1 // Nil
-		for i := len(elements) - 1; i >= 0; i-- {
-			nextID = env.CreateList(nextID, elements[i].Value, elements[i].Type)
-		}
-
-		return nextID, TypeList
+		id := popStack(stack)
+		return id, TypeList
 	case InstrNone:
 		popStack(stack)
 		return 0, TypeNone
+	case InstrStoi:
+		assertArgc(popStack(stack), 1)
+		id, t := eval(env, symbols, stack)
+		if t == TypeString {
+			str := env.GetString(id)
+			i, _ := strconv.Atoi(str)
+			return int64(i), TypeInteger
+		}
 	default:
 		panic("Unrecognized instruction")
 	}
@@ -264,7 +261,7 @@ func eval(env *Env, symbols *SymbolTable, stack *Stack) (int64, YapType) {
 func popArg(env *Env, stack *Stack) {
 	instr := popStack(stack)
 	switch instr {
-	case InstrInteger, InstrFloat, InstrString, InstrVar, InstrBool, InstrNone:
+	case InstrInteger, InstrFloat, InstrString, InstrVar, InstrBool, InstrNone, InstrList:
 		popStack(stack)
 	case InstrFn:
 		id := popStack(stack)
@@ -382,10 +379,7 @@ func dis(env *Env, stack *Stack) {
 		dis(env, stack)
 		fmt.Print(")")
 	case InstrList:
-		argc := popStack(stack)
-		fmt.Print("(LIST ")
-		disArgs(env, stack, argc)
-		fmt.Print(")")
+		fmt.Print("(LIST ", popStack(stack), ")")
 	default:
 	}
 }

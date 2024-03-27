@@ -18,6 +18,7 @@ const (
 	InstrHead
 	InstrTail
 	InstrList
+	InstrStoi
 )
 
 type YapType int64

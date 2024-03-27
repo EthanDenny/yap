@@ -10,6 +10,10 @@ const (
 	TokenInteger
 	TokenFloat
 	TokenString
+	TokenLeftBracket
+	TokenRightBracket
+	TokenLeftBrace
+	TokenRightBrace
 )
 
 type Token struct {
